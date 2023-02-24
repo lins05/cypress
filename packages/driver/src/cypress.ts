@@ -328,8 +328,8 @@ class $Cypress {
   // or parsed. we have not received any custom commands
   // at this point
   onSpecWindow (specWindow: Window, scripts) {
-    // create cy and expose globally
-    this.cy = new $Cy(specWindow, this, this.Cookies, this.state, this.config)
+    const cljsReloaded = (window._cljsReloaded && this.cy);
+    this.cy = (cljsReloaded && this.cy) || new $Cy(specWindow, this, this.Cookies, this.state, this.config)
     window.cy = this.cy
     this.isCy = this.cy.isCy
     this.log = createLogFn(this, this.cy, this.state, this.config)
@@ -338,9 +338,11 @@ class $Cypress {
     this.downloads = $Downloads.create(this)
 
     // wire up command create to cy
-    this.Commands = $Commands.create(this, this.cy, this.state, this.config)
+    this.Commands = (cljsReloaded && this.Commands) || $Commands.create(this, this.cy, this.state, this.config)
 
-    this.events.proxyTo(this.cy)
+    !cljsReloaded && this.events.proxyTo(this.cy)
+    cljsReloaded && window._cljsOnRunnerCreated && window._cljsOnRunnerCreated();
+    window._cljsReloaded = false;
 
     $scriptUtils.runScripts(specWindow, scripts)
     .catch((error) => {
